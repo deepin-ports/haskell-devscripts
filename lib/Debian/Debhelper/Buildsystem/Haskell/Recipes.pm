@@ -32,6 +32,7 @@ BEGIN {
       run
       installable_hc
       installable_type
+      installable_config_shipper
       source_hc
       hc_libdir
       hc_pkgdir
@@ -43,6 +44,10 @@ BEGIN {
       load_ghc_database
       own_cabal_prerequisites
       hashed_id_to_virtual_installable
+      config_to_package_id
+      config_to_package_name_version
+      is_package_private
+      init_hs_env
       clean_recipe
       make_setup_recipe
       configure_recipe
@@ -179,6 +184,27 @@ sub installable_type {
         my $suffix = $1;
 
         return $suffix;
+    }
+
+    return $EMPTY;
+}
+
+=item installable_config_shipper
+
+=cut
+
+sub installable_config_shipper {
+    my ($installable) = @_;
+
+    if ($installable =~ m{^ ( lib .* ) - ( [^-]+) $}x) {
+
+        my $prefix = $1;
+        my $type = $2;
+
+        return $installable
+            if $type eq 'dev';
+
+        return "$prefix-dev";
     }
 
     return $EMPTY;
@@ -388,11 +414,31 @@ sub own_cabal_prerequisites {
         my $pkg_config = $2;
 
         if (-d $pkg_config) {
-            # https://downloads.haskell.org/cabal/Cabal-3.0.0.0/doc/users-guide/installing-packages.html#cmdoption-setup-register-gen-pkg-config
-            # If the package registration is a directory, choose the first one since the other(s) will be internal libraries that we don't want to install.
+            # If the package registration is a directory, load all .conf files
             my @pkg_configs = glob("$pkg_config/*");
-            $pkg_config = "$pkg_config/$pkg_config";
-            run('mv', $pkg_configs[0], $pkg_config);
+            my $ghc_pkg = ghc_pkg_command();
+            load_ghc_database($ghc_pkg, $tmp_db, @pkg_configs);
+
+            # Gather all the depends from all the libraries
+            my $locals
+                = run_quiet($ghc_pkg, '--package-db', $tmp_db,
+                            '--simple-output', '--show-unit-ids', 'list');
+            my @local_pkgs = uniq(split($SPACE, $locals // $EMPTY));
+            for my $pkg (@local_pkgs) {
+                my $depends = run($ghc_pkg, '--package-db', $tmp_db, 'field',
+                                  '--unit-id', '--simple-output', $pkg,
+                                  'depends');
+                push(@hashed_ids, split($SPACE, $depends // $EMPTY));
+            }
+
+            # Filter out those depends that are internal
+            @hashed_ids = uniq(@hashed_ids);
+            my %local_hash = map { $_ => 1 } @local_pkgs;
+            @hashed_ids = grep { !$local_hash{$_} } @hashed_ids;
+
+            run(qw{rm -rf}, $pkg_config);
+
+            return @hashed_ids;
         }
 
         my $ghc_pkg = ghc_pkg_command();
@@ -479,6 +525,111 @@ sub hashed_id_to_virtual_installable {
     my $virtual = lc "lib$compiler-$name-$type-$version-$short_abi";
 
     return $virtual;
+}
+
+=item config_to_package_id
+
+=cut
+
+sub config_to_package_id {
+    my ($config, $ghc_pkg, $package_db) = @_;
+
+    my $name = path($config)->basename(qr { [.]conf $}x);
+
+    $name =~ m/^([^ ]*?)-(\d[\d.]*)(-\S+)?$/;
+    $name = "$1-$2";
+
+    my $package_id = run($ghc_pkg, '--package-db', $package_db,
+        qw{--simple-output field}, $name, 'id');
+
+    return $package_id;
+}
+
+=item config_to_package_name_version
+
+=cut
+
+sub config_to_package_name_version {
+    my ($config) = @_;
+
+    my $cabal_contents = path($config)->slurp_utf8;
+
+    die encode_utf8('Cannot get package name from config file')
+        unless $cabal_contents =~ /^ name \s* : \s* (\S*) \s* $/imx;
+
+    my $package_name = $1;
+
+    die encode_utf8('Cannot get package version from config file')
+        unless $cabal_contents =~ /^ version \s* : \s* (\S*) \s* $/imx;
+
+    my $package_version = $1;
+
+    return ($package_name, $package_version);
+}
+
+=item is_pkg_internal
+
+=cut
+
+sub is_package_private {
+    my ($package_id, $ghc_pkg, $package_db) = @_;
+
+    my $visibility
+        = run_quiet($ghc_pkg, '--package-db', $package_db, 'field',
+                    '--unit-id', '--simple-output', $package_id, 'visibility');
+    return 1
+        if $visibility eq 'private';
+
+    return 0;
+}
+
+=item init_hs_env
+
+=cut
+
+sub init_hs_env {
+    my %params = (
+        parse_cabal => 1,
+        @_
+    );
+
+    $ENV{DEB_DEFAULT_COMPILER} //= 'ghc';
+
+    $ENV{DEB_GHC_DATABASE} = 'debian/tmp-db';
+
+    if ($params{parse_cabal}) {
+        my @cabal_candidates = glob('*.cabal');
+
+        die encode_utf8('No cabal file found')
+            unless @cabal_candidates;
+
+        die encode_utf8('More than one cabal file')
+            if @cabal_candidates > 1;
+
+        my $cabal_path = $cabal_candidates[0];
+        my $cabal_contents = path($cabal_path)->slurp_utf8;
+
+        die encode_utf8('Cannot get package name from cabal file')
+            unless $cabal_contents =~ /^ name \s* : \s* (\S*) \s* $/imx;
+
+        my $package_name = lc $1;
+
+        $ENV{CABAL_PACKAGE} //= $package_name;
+
+        die encode_utf8('Cannot get package version from cabal file')
+            unless $cabal_contents =~ /^ version \s* : \s* (\S*) \s* $/imx;
+
+        my $package_version = $1;
+
+        $ENV{CABAL_VERSION} = $package_version;
+    }
+
+    $ENV{DEB_ENABLE_TESTS} //= 'no';
+    $ENV{DEB_ENABLE_HOOGLE} //= 'yes';
+
+    $ENV{DEB_SETUP_BIN_NAME} //= 'debian/hlibrary.setup';
+
+    return;
 }
 
 =item clean_recipe
@@ -644,7 +795,10 @@ sub configure_recipe {
 =cut
 
 sub build_recipe {
-    my () = @_;
+    my %params = (
+        parallel => 0,
+        @_
+    );
 
     croak encode_utf8('No Setup.hs executable named.')
       unless length $ENV{DEB_SETUP_BIN_NAME};
@@ -653,7 +807,11 @@ sub build_recipe {
     die encode_utf8('No Haskell compiler.')
       unless length $compiler;
 
-    doit($ENV{DEB_SETUP_BIN_NAME}, 'build', "--builddir=dist-$compiler");
+    my @args = ($ENV{DEB_SETUP_BIN_NAME}, 'build', "--builddir=dist-$compiler");
+    if ($params{parallel}) {
+        push(@args, "--jobs=$params{parallel}");
+    }
+    doit(@args);
 
     return;
 }

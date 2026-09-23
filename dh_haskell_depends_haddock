@@ -29,6 +29,7 @@ use Path::Tiny;
 use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
   run
   installable_hc
+  installable_type
   hc_haddock
 );
 use Debian::Debhelper::Dh_Lib;
@@ -41,6 +42,9 @@ const my $NEWLINE => qq{\n};
 init();
 
 for my $installable (@{ $dh{DOPACKAGES} }) {
+
+    my $type = installable_type($installable);
+    next if ($type ne 'doc');
 
     my $compiler = installable_hc($installable);
     my $haddock_command = hc_haddock($compiler);

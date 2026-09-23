@@ -29,9 +29,9 @@ use Unicode::UTF8 qw(encode_utf8);
 
 use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
   run
+  init_hs_env
   installable_hc
-  ghc_pkg_command
-  load_ghc_database
+  installable_type
   own_cabal_prerequisites
 );
 use Debian::Debhelper::Dh_Lib;
@@ -46,11 +46,10 @@ init(
     options => {
         'type=s' => \$dh{TYPE},
     });
-
-my $type = $dh{TYPE} // $EMPTY;
+init_hs_env();
 
 # this installs the extra-packages file
-if ($type eq 'dev' && length $ENV{DEB_GHC_EXTRA_PACKAGES}) {
+if (length $ENV{DEB_GHC_EXTRA_PACKAGES}) {
 
     die encode_utf8('Need CABAL_PACKAGE for DEB_GHC_EXTRA_PACKAGES')
       unless length $ENV{CABAL_PACKAGE};
@@ -59,6 +58,9 @@ if ($type eq 'dev' && length $ENV{DEB_GHC_EXTRA_PACKAGES}) {
       unless length $ENV{CABAL_VERSION};
 
     for my $installable (@{ $dh{DOPACKAGES} }) {
+
+        my $type = $dh{TYPE} // installable_type($installable);
+        next if ($type ne 'dev');
 
         my $EP_DIR
           = "debian/$installable/usr/lib/haskell-packages/extra-packages";

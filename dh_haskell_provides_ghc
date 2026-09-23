@@ -30,12 +30,16 @@ use Unicode::UTF8 qw(encode_utf8);
 
 use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
   run
+  init_hs_env
   installable_type
   installable_hc
+  installable_config_shipper
   hc_pkgdir
   ghc_pkg_command
   load_ghc_database
   hashed_id_to_virtual_installable
+  config_to_package_id
+  is_package_private
 );
 use Debian::Debhelper::Dh_Lib;
 
@@ -47,13 +51,20 @@ init(
     options => {
         'config-shipper=s' => \$dh{CONFIG_SHIPPER},
     });
+init_hs_env(
+    parse_cabal => 0
+);
 
 for my $installable (@{ $dh{DOPACKAGES} }) {
+
+    my $type = installable_type($installable);
+    next if ($type ne 'dev' && $type ne 'prof');
 
     my $compiler = installable_hc($installable) || $ENV{DEB_DEFAULT_COMPILER};
     my $pkgdir = hc_pkgdir($compiler);
 
-    my $config_shipper = $dh{CONFIG_SHIPPER} || $installable;
+    my $config_shipper
+        = $dh{CONFIG_SHIPPER} || installable_config_shipper($installable);
     my $confdir = "debian/$config_shipper/$pkgdir";
 
     my @configs;
@@ -71,23 +82,23 @@ for my $installable (@{ $dh{DOPACKAGES} }) {
 
     my @hashed_ids;
     for my $config (@configs) {
+        my $package_id = config_to_package_id($config, $ghc_pkg, $ENV{DEB_GHC_DATABASE});
 
-        my $name = path($config)->basename(qr{ [.]conf $}x);
-        push(
-            @hashed_ids,
-            run(
-                $ghc_pkg, '--package-db', $ENV{DEB_GHC_DATABASE},
-                qw{--simple-output field},
-                $name, 'id'
-            ));
+        # Exclude packages that are private (internal libraries).
+        my $private = is_package_private($package_id, $ghc_pkg, $ENV{DEB_GHC_DATABASE});
+        next
+            if $private;
+
+        push(@hashed_ids, $package_id);
     }
 
     my $substvars_path = "debian/$installable.substvars";
 
-    replace_line($substvars_path, "haskell:$compiler-package",
-        join($SPACE, @hashed_ids));
+    if ($type eq 'dev') {
+        replace_line($substvars_path, "haskell:$compiler-package",
+            join($SPACE, @hashed_ids));
+    }
 
-    my $type = installable_type($installable);
     my @provides = map {
         hashed_id_to_virtual_installable($compiler, $_, $type,
             $ghc_pkg, '--package-db', $ENV{DEB_GHC_DATABASE})

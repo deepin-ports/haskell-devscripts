@@ -25,6 +25,9 @@ use utf8;
 use Const::Fast;
 use Path::Tiny;
 
+use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
+  installable_type
+);
 use Debian::Debhelper::Dh_Lib;
 
 const my $EMPTY => q{};
@@ -37,49 +40,47 @@ init(
         'type=s' => \$dh{TYPE},
     });
 
-my $type = $dh{TYPE} // $EMPTY;
 
-my $short_blurb;
-my $long_blurb;
+for my $installable (@{ $dh{DOPACKAGES} }) {
+    my $type = $dh{TYPE} // installable_type($installable);
 
-if ($type eq 'dev') {
+    my $short_blurb;
+    my $long_blurb;
 
-    $short_blurb = $EMPTY;
-    $long_blurb =<< 'QUOTE_END';
+    if ($type eq 'dev') {
+
+        $short_blurb = $EMPTY;
+        $long_blurb =<< 'QUOTE_END';
 This package provides a library for the Haskell programming language.
 See http://www.haskell.org/ for more information on Haskell.
 QUOTE_END
-}
+    } elsif ($type eq 'prof') {
 
-if ($type eq 'prof') {
-
-    $short_blurb = '; profiling libraries';
-    $long_blurb = << 'QUOTE_END';
+        $short_blurb = '; profiling libraries';
+        $long_blurb = << 'QUOTE_END';
 This package provides a library for the Haskell programming language, compiled
 for profiling.  See http://www.haskell.org/ for more information on Haskell.
 QUOTE_END
-}
+    } elsif ($type eq 'doc') {
 
-if ($type eq 'doc') {
-
-    $short_blurb = '; documentation';
-    $long_blurb = << 'QUOTE_END';
+        $short_blurb = '; documentation';
+        $long_blurb = << 'QUOTE_END';
 This package provides the documentation for a library for the Haskell
 programming language.
 See http://www.haskell.org/ for more information on Haskell.
 QUOTE_END
-}
+    } else {
+        next;
+    }
 
-$short_blurb //= $EMPTY;
-$long_blurb //= $EMPTY;
+    $short_blurb //= $EMPTY;
+    $long_blurb //= $EMPTY;
 
-chomp $short_blurb;
-chomp $long_blurb;
+    chomp $short_blurb;
+    chomp $long_blurb;
 
-# replace newlines with magic marker
-$long_blurb =~ s{ \n }{$MAGIC_MARKER}gx;
-
-for my $installable (@{ $dh{DOPACKAGES} }) {
+    # replace newlines with magic marker
+    $long_blurb =~ s{ \n }{$MAGIC_MARKER}gx;
 
     my $substvars_path = "debian/$installable.substvars";
 

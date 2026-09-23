@@ -27,7 +27,9 @@ use Unicode::UTF8 qw(encode_utf8);
 
 use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
   run
+  run_quiet
   installable_hc
+  installable_type
   hc_libdir
 );
 use Debian::Debhelper::Dh_Lib;
@@ -42,10 +44,13 @@ init(
 
 for my $installable (@{ $dh{DOPACKAGES} }) {
 
+    my $type = installable_type($installable);
+    next if ($type ne 'dev');
+
     my $compiler = installable_hc($installable) || $ENV{DEB_DEFAULT_COMPILER};
     my $libdir = hc_libdir($compiler);
 
-    my $source = $dh{SOURCE_DIR} || $DOT;
+    my $source = $dh{SOURCE_DIR} || 'debian/tmp';
 
     next
       unless -e "$source/$libdir";
@@ -66,6 +71,15 @@ for my $installable (@{ $dh{DOPACKAGES} }) {
 
     chdir($savedir)
       or warn encode_utf8("Cannot change folder to $savedir");
+
+    my $installed = run_quiet(
+        'find',
+        "$source/$libdir",
+        qw{ ( ! -name *_p.a ! -name *.p_hi ! -type d ) },
+        qw{-print0}
+    );
+    my @installed_files = split(/\0/, $installed);
+    log_installed_files($installable, @installed_files);
 }
 
 exit;

@@ -2,13 +2,12 @@ Source: haskell-devscripts
 Section: haskell
 Priority: optional
 Maintainer: Debian Haskell Group <pkg-haskell-maintainers@lists.alioth.debian.org>
-Uploaders: Joachim Breitner <nomeata@debian.org>
-         , Louis Bettens <louis@bettens.info>
-         , Ilias Tsitsimpis <iliastsi@debian.org>
+Uploaders: Ilias Tsitsimpis <iliastsi@debian.org>
          , Felix Lechner <felix.lechner@lease-up.com>
+         , Scott Talbert <swt@techie.net>
 Build-Depends: debhelper-compat (= 13)
 Build-Depends-Indep: perl
-Standards-Version: 4.6.1
+Standards-Version: 4.7.3
 Rules-Requires-Root: no
 Vcs-Browser: https://salsa.debian.org/haskell-team/haskell-devscripts
 Vcs-Git: https://salsa.debian.org/haskell-team/haskell-devscripts.git/
@@ -17,9 +16,7 @@ Package: haskell-devscripts-minimal
 Architecture: all
 Depends: dctrl-tools
   , debhelper (>= 10)
-  , dh-buildinfo
   , ghc
-  , cdbs
   , html-xml-utils
   , ghc-haddock
   , libconst-fast-perl

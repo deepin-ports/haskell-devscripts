@@ -26,6 +26,7 @@ use Const::Fast;
 use List::SomeUtils qw(uniq);
 use Path::Tiny;
 
+use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(installable_type);
 use Debian::Debhelper::Dh_Lib;
 
 const my $SPACE => q{ };
@@ -36,6 +37,9 @@ const my $NEWLINE => qq{\n};
 init();
 
 for my $installable (@{ $dh{DOPACKAGES} }) {
+
+    my $type = installable_type($installable);
+    next if ($type ne 'doc');
 
     my @suggests;
 

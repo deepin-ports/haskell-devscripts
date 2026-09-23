@@ -36,15 +36,17 @@ const my $NEWLINE => qq{\n};
 
 init();
 
-my $version = run(qw{dpkg-query --showformat=${Version} --show hugs});
-my $upstream_version = $version;
-
-# strip Debian revision
-$upstream_version =~ s{ - [^-]* $}{}x;
-
-my @depends = ("hugs (>= $upstream_version)");
-
 for my $installable (@{ $dh{DOPACKAGES} }) {
+
+    next if ($installable !~ m{^ libhugs- .* $}x);
+
+    my $version = run(qw{dpkg-query --showformat=${Version} --show hugs});
+    my $upstream_version = $version;
+
+    # strip Debian revision
+    $upstream_version =~ s{ - [^-]* $}{}x;
+
+    my @depends = ("hugs (>= $upstream_version)");
 
     my $substvars_path = "debian/$installable.substvars";
 

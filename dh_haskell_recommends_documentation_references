@@ -29,7 +29,10 @@ use Path::Tiny;
 use Unicode::UTF8 qw(encode_utf8);
 use Cwd qw(abs_path);
 
-use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(run_quiet);
+use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
+  installable_type
+  run_quiet
+);
 use Debian::Debhelper::Dh_Lib;
 
 const my $EMPTY => q{};
@@ -48,14 +51,20 @@ die encode_utf8('grep-dctrl is missing')
 
 for my $installable (@{ $dh{DOPACKAGES} }) {
 
+    my $type = installable_type($installable);
+    next if ($type ne 'doc');
+
     say encode_utf8(
         "Finding all links in the documentation in installable $installable.");
-    my @links =split(
-        m{\n}x,
-        run_quiet(
-            'find', "debian/$installable",
-            qw{-name *.html -exec hxwls -r \{\} ;}
-        ));
+    my @links;
+    if (-d "debian/$installable") {
+        @links = split(
+            m{\n}x,
+            run_quiet(
+                'find', "debian/$installable",
+                qw{-name *.html -exec hxwls -r \{\} ;}
+            ));
+    }
 
     my @files;
     for my $link (@links) {

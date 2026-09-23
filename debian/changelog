@@ -1,3 +1,128 @@
+haskell-devscripts (0.16.49) unstable; urgency=medium
+
+  * Exclude packages that are private, instead of not exposed
+
+ -- Ilias Tsitsimpis <iliastsi@debian.org>  Thu, 12 Mar 2026 22:57:12 +0200
+
+haskell-devscripts (0.16.48) unstable; urgency=medium
+
+  * Drop depends on cdbs (Closes: #1125188)
+
+ -- Scott Talbert <swt@techie.net>  Fri, 27 Feb 2026 15:18:27 -0500
+
+haskell-devscripts (0.16.47) unstable; urgency=medium
+
+  * Exclude all local libraries in dh_haskell_depends_cabal
+    (Closes: #1126942)
+
+ -- Scott Talbert <swt@techie.net>  Wed, 04 Feb 2026 19:59:17 -0500
+
+haskell-devscripts (0.16.46) unstable; urgency=medium
+
+  [ Clint Adams ]
+  * Revert "Attempt to handle more complexity in ghc-pkg configs."
+
+  [ Scott Talbert ]
+  * Better handle packages with internal libraries (Closes: #1016650,
+    #1126033)
+
+ -- Scott Talbert <swt@techie.net>  Fri, 30 Jan 2026 20:49:19 -0500
+
+haskell-devscripts (0.16.45) unstable; urgency=medium
+
+  * Attempt to handle more complexity in ghc-pkg configs.
+
+ -- Clint Adams <clint@debian.org>  Mon, 19 Jan 2026 22:55:19 -0500
+
+haskell-devscripts (0.16.44) unstable; urgency=medium
+
+  * Add parallel support to build recipe
+
+ -- Scott Talbert <swt@techie.net>  Tue, 16 Dec 2025 22:17:51 -0500
+
+haskell-devscripts (0.16.43) unstable; urgency=medium
+
+  * dh_haskell_provides_ghc: skip parsing .cabal files
+
+ -- Scott Talbert <swt@techie.net>  Thu, 20 Nov 2025 19:22:56 -0500
+
+haskell-devscripts (0.16.42) unstable; urgency=medium
+
+  * dh_haskell_depends_cabal: only operate on -dev and -prof packages
+
+ -- Scott Talbert <swt@techie.net>  Tue, 28 Oct 2025 00:00:22 -0400
+
+haskell-devscripts (0.16.41) unstable; urgency=medium
+
+  * dh_haskell_recommends...: handle non-existent install dir
+
+ -- Scott Talbert <swt@techie.net>  Fri, 24 Oct 2025 18:26:34 -0400
+
+haskell-devscripts (0.16.40) unstable; urgency=medium
+
+  * dh_haskell_provides_ghc: only operate on -dev and -prof packages
+
+ -- Scott Talbert <swt@techie.net>  Fri, 17 Oct 2025 21:43:28 -0400
+
+haskell-devscripts (0.16.39) unstable; urgency=medium
+
+  * Only provide $haskell:ghc-package substvar for -dev pkgs (Closes: #1118032)
+
+ -- Scott Talbert <swt@techie.net>  Wed, 15 Oct 2025 23:59:41 -0400
+
+haskell-devscripts (0.16.38) unstable; urgency=medium
+
+  * Log installed files in dh_haskell_install_* helpers
+
+ -- Scott Talbert <swt@techie.net>  Mon, 13 Oct 2025 19:28:09 -0400
+
+haskell-devscripts (0.16.37) unstable; urgency=medium
+
+  * Update dh_haskell_blurbs to not require dev parameter
+  * Update dh_haskell_depends_cabal to not require config-shipper parameter
+  * Update dh_haskell_depends_haddock to ignore non-doc packages
+  * Update dh_haskell_depends_hugs to ignore non-hugs packages
+  * Update dh_haskell_install_development_libs to ignore non-dev packages
+  * Update dh_haskell_install_ghc_registration to ignore non-dev packages
+  * Update dh_haskell_install_haddock to ignore non-doc packages
+  * Update dh_haskell_install_htmldocs to ignore non-doc packages
+  * Update dh_haskell_install_profiling_libs to ignore non-prof packages
+  * Update dh_haskell_provides_ghc to not require config-shipper parameter
+  * Update dh_haskell_recommends_documentation_references to ignore non-doc pkgs
+  * Update dh_haskell_shlibdeps to ignore non-dev packages
+  * Update dh_haskell_suggests to ignore non-doc packages
+  * Update dh_haskell_extra_depends_ghc to not require type param
+  * Add myself to Uploaders
+  * Move envvars needed by dh_haskell_ scripts to common library
+  * Change default source-dir for installation scripts to debian/tmp
+  * Update Standards-Version to 4.7.2 (no changes needed)
+  * Remove FSF mailing address from d/copyright
+
+ -- Scott Talbert <swt@techie.net>  Fri, 10 Oct 2025 14:21:01 -0400
+
+haskell-devscripts (0.16.36) unstable; urgency=medium
+
+  * Introduce config_to_package_id method
+
+ -- Ilias Tsitsimpis <iliastsi@debian.org>  Fri, 19 Sep 2025 21:07:26 +0300
+
+haskell-devscripts (0.16.35) experimental; urgency=medium
+
+  * dh_haskell_provides_ghc: strip "-inplace" from configs.
+
+ -- Clint Adams <clint@debian.org>  Fri, 12 Sep 2025 14:56:58 -0400
+
+haskell-devscripts (0.16.34) unstable; urgency=medium
+
+  [ Holger Levsen ]
+  * Remove depends on dh-buildinfo. Closes: #1089874.
+
+  [ Ilias Tsitsimpis ]
+  * Declare compliance with Debian policy 4.7.0
+  * Remove inactive uploaders
+
+ -- Ilias Tsitsimpis <iliastsi@debian.org>  Mon, 16 Dec 2024 21:13:53 +0200
+
 haskell-devscripts (0.16.33) unstable; urgency=medium
 
   * Remove debian/tmp-setup-hs directory in clean target

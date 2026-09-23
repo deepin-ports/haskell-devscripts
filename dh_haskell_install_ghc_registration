@@ -25,18 +25,25 @@ use File::Temp;
 use Unicode::UTF8 qw(encode_utf8);
 
 use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
+  config_to_package_name_version
   run
+  init_hs_env
   installable_hc
+  installable_type
   hc_pkgdir
 );
 use Debian::Debhelper::Dh_Lib;
 
 init();
+init_hs_env();
 
 die encode_utf8('No Setup.hs executable named.')
   unless length $ENV{DEB_SETUP_BIN_NAME};
 
 for my $installable (@{ $dh{DOPACKAGES} }) {
+
+    my $type = installable_type($installable);
+    next if ($type ne 'dev');
 
     my $compiler = installable_hc($installable) || $ENV{DEB_DEFAULT_COMPILER};
     my $pkgdir = hc_pkgdir($compiler);
@@ -59,17 +66,28 @@ for my $installable (@{ $dh{DOPACKAGES} }) {
         my $pkg_config = $2;
 
         if (-d $path) {
-            # https://downloads.haskell.org/cabal/Cabal-3.0.0.0/doc/users-guide/installing-packages.html#cmdoption-setup-register-gen-pkg-config
-            # If the package registration is a directory, choose the first one since the other(s) will be internal libraries that we don't want to install.
+            # If the package registration is a directory, install all of the
+            # files after renaming them to the name-version.conf format.
             my @pkg_configs = glob("$path/*");
-            $path = $pkg_configs[0];
+            for my $pkg_config_src (@pkg_configs) {
+                my ($pkg_name, $pkg_ver) = config_to_package_name_version($pkg_config_src);
+                my $pkg_config_dst = "$pkg_name-$pkg_ver.conf";
+
+                run(qw{sed -i}, 's/^exposed: True$/exposed: False/', "$pkg_config_src")
+                    if length $ENV{HASKELL_HIDE_PACKAGES};
+
+                run(qw{install -D --mode=644},
+                    $pkg_config_src,
+                    "debian/$installable/$pkgdir/$pkg_config_dst");
+            }
+        } else {
+
+            run(qw{sed -i}, 's/^exposed: True$/exposed: False/', $path)
+                if length $ENV{HASKELL_HIDE_PACKAGES};
+
+            run(qw{install -D --mode=644},
+                $path, "debian/$installable/$pkgdir/$pkg_config");
         }
-
-        run(qw{sed -i}, 's/^exposed: True$/exposed: False/', $path)
-            if length $ENV{HASKELL_HIDE_PACKAGES};
-
-        run(qw{install -D --mode=644},
-            $path, "debian/$installable/$pkgdir/$pkg_config");
 
         run(qw{rm -rf}, $pkg_config);
 

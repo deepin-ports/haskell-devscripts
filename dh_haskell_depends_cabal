@@ -29,12 +29,16 @@ use Unicode::UTF8 qw(encode_utf8);
 
 use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
   run
+  run_quiet
+  init_hs_env
   installable_type
   installable_hc
+  installable_config_shipper
   hc_pkgdir
   ghc_pkg_command
   load_ghc_database
   hashed_id_to_virtual_installable
+  config_to_package_id
 );
 use Debian::Debhelper::Dh_Lib;
 
@@ -49,19 +53,22 @@ init(
     options => {
         'config-shipper=s' => \$dh{CONFIG_SHIPPER},
     });
+init_hs_env();
 
 my $haskell_ghc_pkg = ghc_pkg_command();
 
 for my $installable (@{ $dh{DOPACKAGES} }) {
 
     my $type = installable_type($installable);
+    next if ($type ne 'dev' && $type ne 'prof');
 
     my $haskell_compiler
       = installable_hc($installable) || $ENV{DEB_DEFAULT_COMPILER};
 
     my $pkgdir = hc_pkgdir($haskell_compiler);
 
-    my $config_shipper = $dh{CONFIG_SHIPPER} || $installable;
+    my $config_shipper
+        = $dh{CONFIG_SHIPPER} || installable_config_shipper($installable);
     my $confdir = "debian/$config_shipper/$pkgdir";
 
     my @ghc_configs;
@@ -149,10 +156,10 @@ sub cabal_depends {
     my @prerequisites;
     for my $config (@configs) {
 
-        my $name = path($config)->basename(qr{ [.]conf $}x);
+        my $package_id = config_to_package_id($config, $ghc_pkg, $tmp_db);
         my $depends
           = run($ghc_pkg, '--package-db', $tmp_db, qw{--simple-output field},
-            $name, 'depends');
+            '--unit-id', $package_id, 'depends');
         push(@prerequisites, split($SPACE, $depends // $EMPTY));
     }
 
@@ -164,11 +171,21 @@ sub cabal_depends {
     # the versions should probably be dropped by the caller
     s{ - [0-9] [.0-9a-zA-Z]* $}{}x for @exclude_patterns;
 
+    my $locals
+        = run_quiet($ghc_pkg, '--package-db', $tmp_db, '--simple-output',
+                    '--show-unit-ids', 'list');
+    my @local_pkgs = uniq(split($SPACE, $locals // $EMPTY));
+
     my @retained;
     for my $prerequisite (@have) {
 
         next
           if any { $prerequisite =~ m{\Q$_\E} } @exclude_patterns;
+
+        # Exclude libraries that are local (ie, part of this package).
+        # We don't want external deps for them.
+        next
+            if (grep(/^$prerequisite$/, @local_pkgs));
 
         push(@retained, $prerequisite);
     }

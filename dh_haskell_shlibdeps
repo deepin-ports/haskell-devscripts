@@ -31,10 +31,13 @@ use Unicode::UTF8 qw(encode_utf8 decode_utf8);
 
 use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
   run
+  init_hs_env
   installable_hc
+  installable_type
   hc_pkgdir
   ghc_pkg_command
   load_ghc_database
+  config_to_package_id
 );
 use Debian::Debhelper::Dh_Lib;
 
@@ -42,10 +45,14 @@ const my $SPACE => q{ };
 const my $NEWLINE => qq{\n};
 
 init();
+init_hs_env();
 
 my $ghc_pkg = ghc_pkg_command();
 
 for my $installable (@{ $dh{DOPACKAGES} }) {
+
+    my $type = installable_type($installable);
+    next if ($type ne 'dev');
 
     my $compiler = installable_hc($installable) || $ENV{DEB_DEFAULT_COMPILER};
     my $pkgdir = hc_pkgdir($compiler);
@@ -60,23 +67,27 @@ for my $installable (@{ $dh{DOPACKAGES} }) {
 
     my @gcc_args;
 
-    my @hashed_ids = map { path($_)->basename(qr{ [.]conf $}x) } @configs;
-    for my $hashed_id (@hashed_ids) {
+    my @package_ids;
+    for my $config (@configs) {
+        my $package_id = config_to_package_id($config, $ghc_pkg, $ENV{DEB_GHC_DATABASE});
+        push(@package_ids, $package_id);
+    }
+    for my $package_id (@package_ids) {
 
         my $libdir_string = decode_utf8(
             run(
-                $ghc_pkg, '--package-db',
-                $ENV{DEB_GHC_DATABASE}, qw{--simple-output field},
-                $hashed_id, 'library-dirs'
+                $ghc_pkg, '--package-db', $ENV{DEB_GHC_DATABASE},
+                qw{--simple-output field},
+                '--unit-id', $package_id, 'library-dirs'
             ));
         my @lib_dirs = split($SPACE, $libdir_string);
         push(@gcc_args, (map { "-L$_" } @lib_dirs));
 
         my $library_string = decode_utf8(
             run(
-                $ghc_pkg, '--package-db',
-                $ENV{DEB_GHC_DATABASE}, qw{--simple-output field},
-                $hashed_id, 'extra-libraries'
+                $ghc_pkg, '--package-db', $ENV{DEB_GHC_DATABASE},
+                qw{--simple-output field},
+                '--unit-id', $package_id, 'extra-libraries'
             ));
         my @libraries = split($SPACE, $library_string);
         push(@gcc_args, (map { "-l$_" } @libraries));

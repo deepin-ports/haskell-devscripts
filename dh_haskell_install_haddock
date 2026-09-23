@@ -27,7 +27,9 @@ use Unicode::UTF8 qw(encode_utf8);
 
 use Debian::Debhelper::Buildsystem::Haskell::Recipes qw(
   run
+  init_hs_env
   installable_hc
+  installable_type
   hc_docdir
 );
 use Debian::Debhelper::Dh_Lib;
@@ -38,6 +40,7 @@ init(
     options => {
         'source-dir=s' => \$dh{SOURCE_DIR},
     });
+init_hs_env();
 
 die encode_utf8('Need CABAL_PACKAGE to install HTML documentation.')
   unless length $ENV{CABAL_PACKAGE};
@@ -47,12 +50,15 @@ die encode_utf8('Need CABAL_VERSION to install HTML documentation.')
 
 for my $installable (@{ $dh{DOPACKAGES} }) {
 
+    my $type = installable_type($installable);
+    next if ($type ne 'doc');
+
     my $compiler = installable_hc($installable) || $ENV{DEB_DEFAULT_COMPILER};
 
     my $docdir
       = hc_docdir($compiler, $ENV{CABAL_PACKAGE}, $ENV{CABAL_VERSION});
 
-    my $source = $dh{SOURCE_DIR} || $DOT;
+    my $source = $dh{SOURCE_DIR} || 'debian/tmp';
     my $tmp_docdir = "$source/$docdir";
 
     next
@@ -64,6 +70,11 @@ for my $installable (@{ $dh{DOPACKAGES} }) {
 
     run(qw{cp --recursive}, $_->stringify, $installable_docdir)
       for path($tmp_docdir)->children(qr{ [.]haddock $}x);
+
+    my @installed_files = ();
+    push(@installed_files, $_->stringify)
+      for path($tmp_docdir)->children(qr{ [.]haddock $}x);
+    log_installed_files($installable, @installed_files);
 }
 
 exit;

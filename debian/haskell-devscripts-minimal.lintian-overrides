@@ -1,6 +1,5 @@
 # these make sense in a devscripts package
 binary-package-depends-on-toolchain-package *debhelper*
-binary-package-depends-on-toolchain-package *cdbs*
 
 # obsolete scripts; last remaining uses documented there
 no-manual-page [usr/bin/dh_haskell_provides]
